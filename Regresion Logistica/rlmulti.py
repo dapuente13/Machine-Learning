@@ -8,44 +8,15 @@ def load_csv(file_name):
     values = read_csv(file_name, header=None).to_numpy()
     return values
 
-def sigmoid(x):
-	## cuidado con x > 50 devuelve 1
-	##
-	s = 1 / (1 + np.exp(-x))
-	return s
+def sigmoide(x):
+    return 1/(1+np.exp(-x))
 
 def h(x,th):
-    return sigmoid(np.matmul(x,th))
-
-def porcentaje(th,X,y):
-    res = h(X,th.T)
-    maximo = np.argmax(res, axis = 1)
-    comp = (maximo==y[:,0])*1
-    g= np.count_nonzero(comp)
-    return (g/len(comp))*100
-
-def costReg(theta, XX, Y, reg):
-	m = Y.size
-	h = sigmoid(XX.dot(theta)) 
-	cost = ((- 1 / m) * (np.dot(Y, np.log(h)) + np.dot((1 - Y), np.log(1 - h + 1e-6)))) + ((reg / (2 * m)) * (np.sum(np.power(theta, 2))))
-	return cost
-
-def gradient(theta, XX, Y, reg):
-    H = sigmoid(np.matmul(XX, theta))
-    m=len(Y)
-    grad = (1 / m) * np.matmul(XX.T, H - Y)
-    
-    tmp=np.r_[[0],theta[1:]]
-
-    thetaAux = theta
-    thetaAux[0] = 0
-
-    result = grad+(reg*tmp/m) + (reg / m * thetaAux)
-    return result
+    return sigmoide(np.matmul(x,th))
 
 def costeGrad(th,X,y,lambd):
     n = X.shape[0]
-    grad = (1/n)*(np.matmul((h(X,th)-y[:,0]).T,X))
+    grad = (1/n)*(np.matmul((h(X,th)-y).T,X))
     grad =grad.T
     reg =(lambd/n)*th
     reg[0]= 0
@@ -61,14 +32,21 @@ def oneVsAll(X,y,num_etiquetas,lambd):
     Xaux = np.hstack((np.ones((X.shape[0],1)),X))
     entrenador = np.zeros((num_etiquetas,X.shape[1]+1))
     for i in range(0,num_etiquetas):
-        #entrenador[i]= opt.fmin_tnc(costeGrad,entrenador[i],args=(Xaux,(y==i)*1,lambd))[0]
-        entrenador[i] = opt.minimize(costReg,entrenador[i],args=(X,(y==i)*1,lambd), jac=gradient).x   
+        entrenador[i]= opt.fmin_tnc(costeGrad,entrenador[i],args=(Xaux,(y==i)*1,lambd))[0]
+        #entrenador[i] = opt.minimize(coste,entrenador[i],args=(X,(y==i)*1,reg), jac=gradiente).x   
     return entrenador
 
+def porcentaje(th,X,y):
+    res = h(X,th.T)
+    maximo = np.argmax(res, axis = 1)
+    comp = (maximo==y)*1
+    g= np.count_nonzero(comp)
+    return (g/len(comp))*100
+
 def errorlambda(X,y,Xval,yval):
-    lmdb= np.array([0.001,0.003,0.01,0.03,0.1,0.3,1,3,5,10,15,30,70,120])
+    lmdb= np.array([0.001,0.003,0.01,0.03,0.1,0.3,1,3,5,10,15,30,50,70,100,150,170,180,190,200,210,220,230,300])
     n = X.shape[0]
-    num_etiquetas = 21
+    num_etiquetas = 4
     m=len(lmdb)
     porcent= np.zeros(m)
     porcval = np.zeros(m)
@@ -82,7 +60,10 @@ def errorlambda(X,y,Xval,yval):
     plt.ylabel('Error')
     plt.plot(lmdb,porcent,label="Entrenamiento", c='r')
     plt.plot(lmdb,porcval,label="Validacion", c= 'g')
-    plt.legend()  
+    plt.legend() 
+    plt.savefig('error_lambda.png')       
+    plt.show() 
+
 
 def main():
 	entrenamiento = load_csv('Entrenamiento2.csv')
@@ -98,12 +79,27 @@ def main():
 	X_pr = prueba[:, 1:-1]
 	y_pr = prueba[:, -1]
 
-	for i in y_val:
-		print(i)
+	#errorlambda(X_ent, y_ent, X_val, y_val)
 
-	errorlambda(X_ent, y_ent, X_val, y_val)
+	X_ent_val = np.concatenate((X_ent,X_val))
+	y_ent_val = np.concatenate((y_ent,y_val))
 
+	th = oneVsAll(X_ent_val,y_ent_val,4,70)
 
+	Xp = np.concatenate((np.atleast_2d(np.ones(X_ent.shape[0])).T,X_ent),axis=1)
+	p=porcentaje(th,Xp,y_ent)
 
+	X_p_val = np.concatenate((np.atleast_2d(np.ones(X_val.shape[0])).T,X_val),axis=1)
+	pval=porcentaje(th,X_p_val,y_val)
+
+	X_p_prueba = np.concatenate((np.atleast_2d(np.ones(X_pr.shape[0])).T,X_pr),axis=1)
+	ptest=porcentaje(th,X_p_prueba,y_pr)
+
+	print("Porcentaje entrenamiento")
+	print(p)
+	print("Porcentaje validacion")
+	print(pval)
+	print("Porcentaje test")
+	print(ptest)
 
 main()
