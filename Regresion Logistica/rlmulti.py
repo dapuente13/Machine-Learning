@@ -3,6 +3,8 @@ from scipy.io import loadmat
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
+import pandas as pd
+import seaborn as sns
 
 def load_csv(file_name):
     values = read_csv(file_name, header=None).to_numpy()
@@ -64,11 +66,19 @@ def errorlambda(X,y,Xval,yval):
     plt.savefig('error_lambda.png')       
     plt.show() 
 
-
 def main():
 	entrenamiento = load_csv('Entrenamiento2.csv')
 	validacion = load_csv('Validacion2.csv')
+	ent_val = load_csv('Ent_Val.csv')
 	prueba = load_csv('Prueba2.csv')
+	todo = load_csv('Train2.csv')
+	rawdf =  pd.read_csv('Train3.csv').iloc[:,1:]
+
+	rawdf.head()
+	rawdf.describe()
+
+	X = todo[:, 1:-1]
+	y = todo[:, -1]
 
 	X_ent = entrenamiento[:, 1:-1]
 	y_ent = entrenamiento[:, -1]
@@ -76,15 +86,24 @@ def main():
 	X_val = validacion[:, 1:-1]
 	y_val = validacion[:, -1]
 
+	X_ent_val = ent_val[:, 1:-1]
+	y_ent_val = ent_val[:, -1]
+
 	X_pr = prueba[:, 1:-1]
 	y_pr = prueba[:, -1]
 
+	rawdf.hist(figsize=(10, 10))
+	plt.tight_layout()
+	#plt.show()
+
+	plt.figure(figsize=(10, 10))
+	tempdf = rawdf.corr()[['Segmentation']].sort_values('Segmentation', ascending=False)
+	sns.heatmap(tempdf, annot=True, vmin=-1, vmax=1)
+	plt.show()
+
 	#errorlambda(X_ent, y_ent, X_val, y_val)
 
-	X_ent_val = np.concatenate((X_ent,X_val))
-	y_ent_val = np.concatenate((y_ent,y_val))
-
-	th = oneVsAll(X_ent_val,y_ent_val,4,70)
+	th = oneVsAll(X_ent_val,y_ent_val,4,100)
 
 	Xp = np.concatenate((np.atleast_2d(np.ones(X_ent.shape[0])).T,X_ent),axis=1)
 	p=porcentaje(th,Xp,y_ent)

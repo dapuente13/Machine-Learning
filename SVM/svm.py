@@ -1,109 +1,147 @@
 import numpy as np
 from sklearn.svm import SVC
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from pandas.io.parsers import read_csv
 from sklearn import metrics
+import time
+import seaborn as sns
 
 def load_csv(file_name):
     values = read_csv(file_name, header=None).to_numpy()
     return values
 
-##def pintar(X,y,svm):
-# #   neg = np.where(y==0)
-#  #  pos = np.where(y==1)
-#   # plt.figure()
-#    
-#    #x1_min,x1_max = X[:,0].min(), X[:,0].max()
-#    #x2_min,x2_max = X[:,1].min(), X[:,1].max()
-#    xx1,xx2= np.meshgrid(np.linspace(x1_min,x1_max),np.linspace(x2_min,x2_max))
-#    Z = svm.predict(np.c_[xx1.ravel(), xx2.ravel()])
-#    Z = Z.reshape(xx1.shape)
-#    plt.scatter(X[pos,0],X[pos,1],marker ='+',c='k')
-#    plt.scatter(X[neg,0],X[neg,1],marker ='o',c='y')
-#    plt.contour(xx1,xx2,Z,[0.5],linewidths=1,colors='g')
+def printerrorlinear(val, porcent):
+    plt.xlabel('lambda')
+    plt.ylabel('Acierto')
+    plt.plot(val,porcent,label="Train Set: Entrenamiento. Test Set: Validación", c='r')
+    plt.savefig('SVM_Ent_Val.png')
 
-def supportv(Xent,yent,Xval,yval):
-    val = np.array([0.01,0.03,0.05,0.1,0.3,0.5,1,3,5,10,15,30,50,100,150,300])
-    maxilin = 0
-    Csollin = 0
-    print("Linear")
-    for i in range(0,val.shape[0]):
-        print(val[i])
-        svm = SVC( kernel='linear', C=val[i])
-        svm.fit(Xent,yent)
-        w = svm.predict(Xval)        
-        t = (w==yval)
-        p = (np.count_nonzero(t)/yval.shape[0])*100
-        #text = 'C='+repr(val[i])+'.Porcentaje='+repr(p)
-        if(p>maxilin):
-            Csollin = val[i]
-            maxilin = p
-        #print(text)
-    textlin = 'Mejor solucion lineal: C = '+ repr(Csollin)+ ' . % = ' +repr(maxilin)
-    maxigaus = 0
-    Csolgaus = 0
-    sigmasolgaus= 0
-    print("Gauss")
-    for i in range(0,val.shape[0]):
-        print(val[i])
-        for j in range(0,val.shape[0]):
-            svm = SVC( kernel='rbf', C=val[i], gamma = 1/(2*val[j]**2))
-            svm.fit(Xent,yent)
-            w = svm.predict(Xval)
-            t = (w==yval)
-            p = (np.count_nonzero(t)/yval.shape[0])*100
-            #text = 'C='+repr(val[i])+',sigma='+repr(val[j])+' .Porcentaje='+repr(p)
-            if(p>maxigaus):
-              Csolgaus = val[i]
-              sigmasolgaus = val[j]
-              maxigaus = p
-            #print(text)
-    text = 'Mejor solucion gaussiana: C = '+ repr(Csolgaus)+', Sigma = '+repr(sigmasolgaus)+ ' . % = ' +repr(maxigaus)
-    print(textlin)
-    print(text)
+def printerrorgauss(M, mn, best, val):
+    cmap = sns.cm.rocket_r
+    plt.figure(figsize=(10, 10))
+    sns.color_palette("flare", as_cmap=True)
+    sns.heatmap(M, square=True, annot=True, vmin=mn, vmax=best, cmap=cmap, xticklabels=val, yticklabels=val)
+    plt.show()
 
-def prueb(Xent,yent,Xpr,ypr):
-    val = np.array([50, 70, 100, 200])
+def linear(Xent,yent,Xpr,ypr):
+    val = np.array([0.001,0.003,0.01,0.03,0.1,0.3,1,3,5,10,50,70,100,150,180,200])
+    best = 0
+    _C = 0
+    porcent= np.zeros(val.shape[0])
     for i in range(0,val.shape[0]):
-        print("SVC")
         svm = SVC(kernel="linear", C=val[i]) 
-        print("fit")
         svm = svm.fit(Xent, yent)
-        print("predict")
         y_pred = svm.predict(Xpr)
-        print("accuracy")
-        print("[",val[i], "] Accuracy: ",metrics.accuracy_score(ypr, y_pred))
+        score = metrics.accuracy_score(ypr, y_pred)
+        porcent[i] = score
+        print("[",val[i], "] Accuracy: ",score)
+        if best < score:       
+            best = score
+            _C = val[i]
 
-def prueb2(Xent,yent,Xpr,ypr):
-    val = np.array([0.01,0.03,0.05,0.1,0.3,0.5,1,3,5,10,15,30,50,100,150,300])
-    sigma = 0.1
-    
+    print("Linear - Best accuracy [", _C ,"]: ",best)
+    printerrorlinear(val, porcent)
+
+def gauss(Xent,yent,Xpr,ypr):
+    val = np.array([0.001,0.003,0.01,0.03,0.1,0.3,1,3,5,10,50,70,100,150,180,200])
+    max_C = 0
+    max_sigma = 0
+    best = 0
+    mn = 100
+
+    M = np.empty((val.shape[0],val.shape[0]))
     for i in range(0,val.shape[0]):
-        print("SVC")
-        svm = SVC(kernel='rbf', C=val[i], gamma=1/(2*sigma**2))
-        print("fit")
-        svm = svm.fit(Xent, yent)
-        print("predict")
-        y_pred = svm.predict(Xpr)
-        print("accuracy")
-        print("[",val[i], "] Accuracy: ",metrics.accuracy_score(ypr, y_pred))
+        for j in range(0,val.shape[0]):  
+            svm = SVC(kernel='rbf', C=val[i], gamma=1/(2*val[j]**2))
+            svm = svm.fit(Xent, yent)
+            y_pred = svm.predict(Xpr)
+            score = metrics.accuracy_score(ypr, y_pred)
+            score = score * 100
+            score = round(score, 2)
+            M[i][j] = score
+            print("[",val[i],",",val[j], "] Accuracy: ",score)
+            if best < score:       
+                best = score
+                max_C = val[i]
+                max_sigma = val[j]
+            if mn > score:
+                mn = score
+
+    print("Gauss - Best accuracy [", max_C ,",",max_sigma,"]: ",best)
+    printerrorgauss(M, mn, best, val)
 
 
-print("Todo")
+def acierto_linear(Xent,yent,Xpr,ypr):
+    _C = 0.001
+    svm = SVC(kernel="linear", C=_C) 
+    svm = svm.fit(Xent, yent)
+    y_pred = svm.predict(Xpr)
+    print("Accuracy: ",metrics.accuracy_score(ypr, y_pred))
 
+def acierto_gauss(Xent,yent,Xpr,ypr):
+    sigma = 5
+    _C = 0.1
+    svm = SVC(kernel='rbf', C=_C, gamma=1/(2*sigma**2))
+    svm = svm.fit(Xent, yent)
+    y_pred = svm.predict(Xpr)
+    score = metrics.accuracy_score(ypr, y_pred)
+    score = score * 100
+    score = round(score, 2)
+    print("Accuracy: ",score)
 
-entrenamiento = load_csv('Entrenamiento2.csv')
-validacion = load_csv('Validacion2.csv')
-prueba = load_csv('Prueba2.csv')
-data = load_csv('Entrenamiento_Validacion.csv')
+def main():
+    entrenamiento = load_csv('Entrenamiento2.csv')
+    validacion = load_csv('Validacion2.csv')
+    prueba = load_csv('Prueba2.csv')
+    data = load_csv('Ent_Val.csv')
+    todo = load_csv('Train2.csv')
 
-X_ent = entrenamiento[:, 1:-1]
-y_ent = entrenamiento[:, -1]
+    X = todo[:, 1:-1]
+    y = todo[:, -1]
 
-X = data[:, 1:-1]
-y = data[:, -1]
+    X_ent = entrenamiento[:, 1:-1]
+    y_ent = entrenamiento[:, -1]
 
-X_pr = prueba[:, 1:-1]
-y_pr = prueba[:, -1]
+    X_val = validacion[:, 1:-1]
+    y_val = validacion[:, -1]
 
-supportv(X_ent,y_ent,X_pr,y_pr)
+    X_ent_val = data[:, 1:-1]
+    y_ent_val = data[:, -1]
+
+    X_pr = prueba[:, 1:-1]
+    y_pr = prueba[:, -1]
+
+    #linear(X_ent,y_ent,X_val,y_val)
+    #gauss(X_ent,y_ent,X_val,y_val)
+
+    #print("X_ent")
+    #acierto_linear(X_ent,y_ent,X_ent,y_ent)
+    #acierto_linear(X_ent,y_ent,X_pr,y_pr)
+    #acierto_linear(X_ent,y_ent,X_val,y_val)
+
+    #acierto_linear("X_ent_val")
+    #acierto_linear(X_ent_val,y_ent_val,X_ent,y_ent)
+    #acierto_linear(X_ent_val,y_ent_val,X_pr,y_pr)
+    #acierto_linear(X_ent_val,y_ent_val,X_val,y_val)
+
+    #print("todo")
+    #acierto_linear(X,y,X_ent,y_ent)
+    #acierto_linear(X,y,X_pr,y_pr)
+    #acierto_linear(X,y,X_val,y_val)
+
+    print("X_ent")
+    acierto_gauss(X_ent,y_ent,X_ent,y_ent)
+    acierto_gauss(X_ent,y_ent,X_pr,y_pr)
+    acierto_gauss(X_ent,y_ent,X_val,y_val)
+
+    print("X_ent_val")
+    acierto_gauss(X_ent_val,y_ent_val,X_ent,y_ent)
+    acierto_gauss(X_ent_val,y_ent_val,X_pr,y_pr)
+    acierto_gauss(X_ent_val,y_ent_val,X_val,y_val)
+
+    print("todo")
+    acierto_gauss(X,y,X_ent,y_ent)
+    acierto_gauss(X,y,X_pr,y_pr)
+    acierto_gauss(X,y,X_val,y_val)
+
+main()
