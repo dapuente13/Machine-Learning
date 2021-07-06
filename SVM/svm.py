@@ -119,7 +119,7 @@ def main():
     #acierto_linear(X_ent,y_ent,X_pr,y_pr)
     #acierto_linear(X_ent,y_ent,X_val,y_val)
 
-    #acierto_linear("X_ent_val")
+    #print("X_ent_val")
     #acierto_linear(X_ent_val,y_ent_val,X_ent,y_ent)
     #acierto_linear(X_ent_val,y_ent_val,X_pr,y_pr)
     #acierto_linear(X_ent_val,y_ent_val,X_val,y_val)
